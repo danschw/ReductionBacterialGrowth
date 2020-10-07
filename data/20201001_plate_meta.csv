@@ -1,0 +1,13 @@
+﻿plate,host,Time,vortex
+Plate 1,WT,-1,FALSE
+Plate 2,spoIIIE,-1,FALSE
+Plate 3,WT,0,FALSE
+Plate 4,spoIIIE,0,FALSE
+Plate 5,WT,4,FALSE
+Plate 6,spoIIIE,4,FALSE
+Plate 7,WT,6,FALSE
+Plate 8,spoIIIE,6,FALSE
+Plate 9,WT,8,FALSE
+Plate 10,spoIIIE,8,FALSE
+Plate 11,WT,8,TRUE
+Plate 12,spoIIIE,8,TRUE
