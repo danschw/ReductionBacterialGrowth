@@ -168,14 +168,19 @@ rbg%>%
   mutate(rbg.v=if_else(rbg.v>1,1,rbg.v))%>%
   ggplot(aes(x=phage.time, y=rbg.v))+
   geom_line(aes(group=host,color=host), alpha=0.5, size=1)+
-  geom_line(data=rbg.mean,aes(y=rbg.avg), size=2)+
-  geom_pointrange(data=rbg.mean,
-                  aes(y=rbg.avg,ymin=rbg.avg-rbg.sd,ymax=rbg.avg+rbg.sd),
-                  size=1)+
+  geom_line(data=rbg.mean,aes(y=rbg.avg), size=1)+
+  # geom_pointrange(data=rbg.mean,
+  #                 aes(y=rbg.avg,ymin=rbg.avg-rbg.sd,ymax=rbg.avg+rbg.sd),
+  #                 size=1)+
+    geom_errorbar(data=rbg.mean,
+                  aes(y=rbg.avg,ymin=rbg.avg-rbg.sd,ymax=rbg.avg+rbg.sd),size=1.5, width=0.1)+
+    geom_point(data=rbg.mean,aes(y=rbg.avg),size=3, shape=21, fill="white")+
   theme_cowplot()+
   scale_x_continuous(breaks=c(-1,0,1))+
   scale_color_grey()+
-  theme(legend.position = "none")
+  theme(legend.position = "none")+
+  ylim(0,1)+
+  ylab("RBG")
 ```
 
 # static plate data
