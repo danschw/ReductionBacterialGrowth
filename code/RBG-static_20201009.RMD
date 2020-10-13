@@ -62,415 +62,66 @@ d.long%>%
   facet_grid(.~rep)+
   theme_cowplot()+
   panel_border()+
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom")+
+  ylim(0,0.5)
 ```
 
-
-<!-- Stopped here -->
-
-# Edge effect (for no-phage only)
+Effect of vortex  
 ```{r}
+d.long%>%
+  # remove dilution data (marked as time -1)
+  filter(Time==4)%>%
+  # remove data of vortexed plate from endpoint
+  mutate(vortex=if_else(vortex, 1,0))%>%
+  # pivot_wider(names_from = vortex, values_from=OD600)
+  ggplot(aes(x=vortex, y=OD600, color=phage.time.shift, group=well))+
+  geom_point()+
+  geom_line()+
+  facet_grid(.~rep)+
+  theme_cowplot()+
+  panel_border()+
+  theme(legend.position = "bottom")+
+  scale_x_continuous(breaks = c(0,1))+
+  ylim(0,0.5)
+```
 
+Vortex makes things mre simmilar. Pot with vortexed data  
+```{r}
 d.long%>%
   # remove dilution data (marked as time -1)
   filter(Time>=0)%>%
-  # remove data of vortexed plate from endpoint
-  filter(!vortex)%>%
-  #only non infected
-  filter(phage=="noPhage")%>%
-  ggplot(aes(x=Time, y=OD600, color=position, group=well))+
+  # remove data of non-vortexed plate from endpoint
+  filter(Time==0 | vortex)%>%
+  ggplot(aes(x=Time, y=OD600, color=phage.time.shift, group=well))+
   geom_point()+
   geom_line()+
-  facet_grid(host~colony)+
+  facet_grid(.~rep)+
   theme_cowplot()+
   panel_border()+
-    theme(legend.position = "bottom")
+  theme(legend.position = "bottom")+
+  ylim(0,0.5)
 ```
 
-There is an edge effect, with less growth in edge.  
-Interestingly, it looks as if there was a difference between the right and left sides of the plate in the edge effect: WT colony 1 (ANC1)  was able to continue growing in the edge wells. Fr the mutant on the same side there was no edge effect 
-
-
-
-## Looking at the controls (compared with shaken)
 ```{r}
-pA <- 
-d.avg%>%
-  filter(str_detect(host, "ANC")|str_detect(host, "blank"))%>%
-  # filter(Time<Tmax)%>%
-  # get first and lat time point within 0:Tmax
-    group_by(well) %>%
-  arrange(Time) %>%
-  filter(row_number()==1 | row_number()==n())%>%
-  mutate(Time=ifelse(Time<1,0,2))%>%
-      ggplot(aes(x=Time, y=OD600))+
-    geom_line(aes(color=phage), size=1)+
-    facet_wrap(~host)+
+d.long%>%
+  # remove dilution data (marked as time -1)
+  filter(Time>=0)%>%
+  # remove data of non-vortexed plate from endpoint
+  filter(Time==0 | vortex)%>%
+  #   # remove data of vortexed plate from endpoint
+  # filter(!vortex)%>%
+  ggplot(aes(x=Time, y=OD600, color=phage.time.shift, group=well))+
+  geom_point()+
+  geom_line()+
+  facet_wrap(~host)+
   theme_cowplot()+
-    panel_border()+
-  theme(legend.position = "bottom",
-        axis.text.x = element_blank())+
-  ylim(0,1.25)+
-  ggtitle("Shaken")
-
-pA2 <- 
-d.avg%>%
-  filter(str_detect(host, "ANC")|str_detect(host, "blank"))%>%
-  filter(Time<Tmax)%>%
-  # get first and lat time point within 0:Tmax
-    group_by(well) %>%
-  arrange(Time) %>%
-  filter(row_number()==1 | row_number()==n())%>%
-  mutate(Time=ifelse(Time<1,0,2))%>%
-      ggplot(aes(x=Time, y=OD600))+
-    geom_line(aes(color=phage), size=1)+
-    facet_wrap(~host)+
-  theme_cowplot()+
-    panel_border()+
-  theme(legend.position = "bottom",
-        axis.text.x = element_blank())+
-  ylim(0,1.25)+
-  ggtitle("Shaken")
-
-pB <- d.static%>%
-   mutate(Time = case_when(Time=="T0" ~ 0,
-                                Time=="Tend" ~ 1,
-                                Time=="Tend.vortex" ~ 2))%>%
-  filter(str_detect(host, "ANC")|str_detect(host, "blank"))%>%
-  filter(Time!=1)%>%
-    ggplot(aes(x=Time, y=OD600))+
-    geom_line(aes(color=phage), size=1)+
-    facet_wrap(~host)+
-  theme_cowplot()+
-    panel_border()+
-  theme(legend.position = "bottom",
-        axis.text.x = element_blank())+
-  ylim(0,1.25)+
-  ggtitle("Static")
-
-plot_grid(pA, pB)+
-  ggsave2(here("plots", "controls_shakenEND.pdf"), width = 10, height = 7)
-
-plot_grid(pA2, pB)+
-  ggsave2(here("plots", "controls_shakenBEST.pdf"), width = 10, height = 7)
+  panel_border()+
+  theme(legend.position = "bottom")+
+  ylim(0,0.5)+
+  scale_color_viridis_d()+
+  ggsave2(here("plots", "WLO_L2_D2_V_liquid.pdf"),width = 11,height = 8.5)
 ```
 
+Looks like it diid not work. There is no difference in Anc control.
 
-## Calculate RBG
-```{r}
-rbg.static <-  
-d.static%>%
-  #choose static with vortexing
-  filter(Time!="Tend.vortex")%>%
-  group_by(well) %>%
-  mutate(Time=ifelse(Time=="T0","start","end"))%>%
-  # pivot to join reads of me well
-  pivot_wider(id_cols=c("well", "host", "phage"),names_from = Time, values_from=OD600)%>%
-  mutate(dif =end-start)%>%
-  # divide dif of each phage by no phage
-  ungroup()%>%
-  group_by(host) %>%
-   mutate(rbg.v = dif / dif[phage == 'noPhage'])%>%
-  ungroup()%>%
-  filter(phage!="noPhage")%>%
-  filter(!str_detect(host, "blank"))%>%
-    mutate(phage.time= case_when(phage=="futuure" ~ 1,
-                               phage=="current" ~ 0,
-                               phage=="past" ~ -1))%>%
-  mutate(evo.host= if_else(str_detect(host,"ANC"), "anc","evol"))
-```
-
-
-# show time shift curves
-```{r}
-rbg.static.mean <- rbg.static%>%
-  filter(!str_detect(host,"ANC"))%>%
-  mutate(rbg.v=if_else(rbg.v>1,1,rbg.v))%>%
-  group_by(phage.time)%>%
-  summarise(rbg.avg=mean(rbg.v),rbg.sd=sd(rbg.v), .groups="drop" )
-  
-
-rbg.static%>%
-  filter(evo.host=="evol")%>%
-  mutate(rbg.v=if_else(rbg.v>1,1,rbg.v))%>%
-  ggplot(aes(x=phage.time, y=rbg.v))+
-  geom_line(aes(group=host,color=host), alpha=0.5, size=1)+
-  geom_line(data=rbg.static.mean,aes(y=rbg.avg), size=2)+
-  geom_pointrange(data=rbg.static.mean,
-                  aes(y=rbg.avg,ymin=rbg.avg-rbg.sd,ymax=rbg.avg+rbg.sd),
-                  size=1)+
-  theme_cowplot()+
-  scale_x_continuous(breaks=c(-1,0,1))+
-  scale_color_grey()+
-  theme(legend.position = "none")
-```
-
-<!-- * It seems like there is a phage contamination in a few of the control wells: A7, E7 and C12   -->
-<!-- * Well H8 may have not recieved phage. -->
-<!-- I will remove those wells:   -->
-<!-- ```{r} -->
-<!-- contam.wells <- c("A7", "E7" , "C12", "H8") -->
-<!-- d <-  -->
-<!--   d%>% -->
-<!--   filter(!well %in%contam.wells) -->
-
-<!-- meta <-  -->
-<!--   meta%>% -->
-<!--   filter(!well %in%contam.wells) -->
-<!-- ``` -->
-
-
-
-
-<!-- ## Calculating the viruence index  -->
-<!-- Folowing Storms et. al.   -->
-<!-- *1. establish limit of integration* -->
-<!-- *"It is important to stress how the establishment of the limit of integration plays a significant role in the assessment of virulence. This limit should be set as the onset of stationary phase in the phage-free control. This provides a consistent reference for integration that can be easily identified for any phage–host system and restricts measurements to the period of cell growth—a necessary condition for productive infection for many phages.47 Moreover, it ensures that the range of the virulence measurements is well distributed, as discussed hereunder. In general, we recommend establishing the limit of integration as the time at which the slope of OD630 over time reaches ≤0.03 h."* -->
-
-<!-- ### Determining the integration limit -->
-<!-- Doing this can be done in 2 ways:   -->
-<!-- A.using 'growthcurver' to find no-phage carying capacity (k) -->
-<!-- ```{r} -->
-<!-- library(growthcurver) -->
-
-<!-- k.noPHI <-  -->
-<!--   input[input$Time<8,]%>% -->
-<!--   select(c("Time", meta$well[meta$phage=="noPHI"]))%>% -->
-<!--   SummarizeGrowthByPlate(., bg_correct = "none")%>% -->
-<!--   select("sample","k") -->
-<!-- colnames(k.noPHI) <- c("well" ,"k")  -->
-
-
-<!-- k.noPHI$Time.k <- NA -->
-<!-- for(i in seq(k.noPHI$well)){ -->
-<!--   w <- k.noPHI$well[i] -->
-<!--   k <- k.noPHI$k[i] -->
-<!--   tmp <-  -->
-<!--     d%>% -->
-<!--     filter(well==w) -->
-<!--   k.noPHI$Time.k[i] <- -->
-<!--     tmp$Time[which(tmp$OD600>k)[1]] -->
-
-<!-- } -->
-<!-- rm(tmp, i,w,k) -->
-<!-- int.limit <- median(k.noPHI$Time.k, na.rm = TRUE) -->
-<!-- int.limit -->
-<!-- ``` -->
-
-<!-- B. by visual inspection of plots   -->
-<!-- First I will look at the change in OD over time. Storms et al. reccomend *establishing the limit of integration as the time at which the slope of OD630 over time reaches ≤0.03 h*   -->
-<!-- ```{r} -->
-<!-- time.diff <- diff(d$Time[1:2]) -->
-
-<!-- d %>%  -->
-<!--   filter(phage=="noPHI")%>% -->
-<!--   split(.$well)%>%  -->
-<!--   map_df("OD600")%>% -->
-<!--   map_df(diff)%>% -->
-<!--     map_df(function(x) x/time.diff)-> tmp -->
-
-<!-- matplot(x= unique(d$Time)[-60],tmp, type="l", ylab = "OD/Time diff") -->
-<!-- abline(h=0.03, col="red", lwd=3) -->
-<!-- abline(v=c(1:floor(max(d$Time))), col="grey") -->
-
-<!-- ``` -->
-
-<!-- Both methods show that at integrating limit should be at ~ 4 hours. That is what I will set. How does that look?   -->
-<!-- ```{r} -->
-<!-- int.limit <- 4 -->
-
-<!-- d%>% -->
-<!--   filter(phage=="noPHI")%>% -->
-<!--   filter(Time<int.limit)%>% -->
-<!--   ggplot(aes(x=Time, y=OD600))+ -->
-<!--   geom_line(data=filter(d,phage=="noPHI"), color="grey", size=1)+ -->
-<!--   geom_line(aes(color=as.factor(dilution)), size=1)+ -->
-<!--   # geom_hline(data=k.noPHI, aes(yintercept=k) )+ -->
-<!--   facet_wrap(~well)+ -->
-<!--   theme_cowplot()+ -->
-<!--     theme(legend.position = "none") -->
-
-<!-- ``` -->
-
-<!-- not quite at stationery. Lets try an integration limit of T<5   -->
-<!-- ```{r} -->
-<!-- int.limit <- 5 -->
-
-<!-- d%>% -->
-<!--   filter(phage=="noPHI")%>% -->
-<!--   filter(Time<int.limit)%>% -->
-<!--   ggplot(aes(x=Time, y=OD600))+ -->
-<!--   geom_line(data=filter(d,phage=="noPHI"), color="grey", size=1)+ -->
-<!--   geom_line(aes(color=as.factor(dilution)), size=1)+ -->
-<!--   # geom_hline(data=k.noPHI, aes(yintercept=k) )+ -->
-<!--   facet_wrap(~well)+ -->
-<!--   theme_cowplot()+ -->
-<!--     theme(legend.position = "none") -->
-
-
-
-<!-- ``` -->
-
-<!-- I think that is better.   -->
-
-<!-- ## Choosing the dilution range   -->
-<!-- Need to make sure to use only dilutions in which all wells got phage.   -->
-<!-- ```{r} -->
-<!-- phage.vol <- 0.1 #ml -->
-<!-- init.titer <- 1.5e11 #PFU/ml -->
-<!-- max.dilut <- 1/(init.titer*phage.vol) -->
-<!-- #-# verify visualy -->
-<!-- d%>% -->
-<!--   filter(host != "Blank")%>% -->
-<!--   # filter(Time<int.limit)%>% -->
-<!--   filter(phage!="noPHI")%>% -->
-<!--   # filter(dilution<=max.dilut)%>% -->
-<!--   ggplot(aes(x=Time, y=OD600))+ -->
-<!--   geom_line(aes(color=well), size=1)+ -->
-<!--   facet_grid(dilution~interaction(host, phage))+ -->
-<!--   theme_cowplot()+ -->
-<!--     theme(legend.position = "none") -->
-
-<!-- ``` -->
-
-<!-- All the dilutions can be used.  -->
-
-<!-- ```{r} -->
-<!-- # d%>% -->
-<!-- #   filter(host != "Blank")%>% -->
-<!-- #   # filter(Time<int.limit+1)%>% -->
-<!-- #   # filter(phage!="noPHI")%>% -->
-<!-- #   filter(dilution==1e-7 |dilution==1e-6 |dilution==1e-5)%>% -->
-<!-- #   ggplot(aes(x=Time, y=OD600))+ -->
-<!-- #   geom_line(aes(color=well), size=1)+ -->
-<!-- #   facet_grid(dilution~interaction(host, phage))+ -->
-<!-- #   theme_cowplot()+ -->
-<!-- #     theme(legend.position = "none") -->
-<!-- #  -->
-<!-- # max.dilut <-1e-7 -->
-<!-- ``` -->
-
-<!-- Plot of lysis -->
-<!-- ```{r} -->
-<!-- d%>% -->
-<!--   filter(host != "Blank")%>% -->
-<!--   filter(dilution != "Blank")%>% -->
-<!--   filter(Time<10)%>% -->
-<!--   filter(!grepl("COL",dilution))%>% -->
-<!--   # filter(phage!="noPHI")%>% -->
-<!--   # filter(dilution<=max.dilut)%>% -->
-<!--   ggplot(aes(x=Time, y=OD600))+ -->
-<!--   geom_line(aes(group=well,color=host), size=1)+ -->
-<!--   facet_wrap(~fct_rev(dilution))+ -->
-<!--   theme_cowplot()+ -->
-<!--   ggtitle("SPO1 infection by MOI (n=4)") -->
-<!--     # theme(legend.position = "none") -->
-<!-- ``` -->
-
-<!-- ## Integrate the area under curve   -->
-<!-- Storms et al.: *"areas underneath the optical density versus time curves were calculated using the trapezoid rule for each well, from the time of infection to the  time corresponding to the onset of stationary phase in the phage-free control* -->
-
-<!-- ```{r} -->
-<!-- library(caTools) #needed for trapezoids -->
-<!-- meta$auc <- NA -->
-<!-- for(i in seq(meta$well)){ -->
-<!--   if(meta$host[i]=="Blank") next -->
-
-<!--   tmp <-  -->
-<!--     d%>% -->
-<!--     filter(well==meta$well[i])%>% -->
-<!--     filter(Time<=int.limit) -->
-<!--   meta$auc[i] <- trapz(tmp$Time, tmp$OD600) -->
-
-<!-- } -->
-<!-- rm(tmp) -->
-
-<!-- # summarize no phage control areas -->
-<!-- sum.noPHI <-  -->
-<!--   meta%>% -->
-<!--     filter(host != "Blank")%>% -->
-<!--     filter(phage=="noPHI")%>% -->
-<!--     group_by(host, colony)%>% -->
-
-<!--     summarise( A0=mean(auc), sd=sd(auc)) -->
-<!-- # %>% -->
-<!--   # ggplot(aes(colony, mean))+ -->
-<!--   # geom_pointrange(aes(ymin=mean-sd, ymax=mean+sd))+ -->
-<!--   # facet_wrap(~host) -->
-<!-- vindex <- merge(meta, sum.noPHI) -->
-<!-- vindex$Vi <- 1-(vindex$auc/vindex$A0) -->
-<!-- vindex$log.moi <- log10(as.numeric(vindex$dilution)*1.5e11/2.5e7) -->
-<!-- vindex%>% -->
-<!--   filter(phage!="noPHI")%>% -->
-<!--   group_by(host,colony, phage, log.moi)%>% -->
-<!--   summarise( Virulence=mean(Vi), mn=min(Vi), mx=max(Vi), n=n())%>% -->
-<!--   ggplot(aes(log.moi, Virulence, color=colony))+ -->
-<!--            geom_pointrange(aes(ymin=mn, ymax=mx ), size=1)+ -->
-<!--            geom_line(aes(group=colony), size=1)+ -->
-<!--            facet_wrap(~interaction(phage, host), nrow=2)+ -->
-<!--            theme_cowplot()+ -->
-<!--   ggtitle("interaction(host,phage)") -->
-<!-- ``` -->
-
-<!-- ## summarize to single value index -->
-<!-- Storms et al.: *The virulence index is defined as the area under the virulence curve (AP) divided by the theoretical maximum area under the virulence curve (Amax)* -->
-<!-- **Vp = Ap / Amax**   -->
-<!-- ```{r} -->
-<!-- sum.phi <- vindex%>% -->
-<!--   filter(phage!="noPHI")%>% -->
-<!--   group_by(host,colony, phage)%>% -->
-<!--   summarise(  n=n()) -->
-
-<!-- sum.phi$Ap <- NA -->
-<!-- sum.phi$Amax <- NA -->
-<!-- for(i in seq(nrow(sum.phi))){ -->
-
-<!--   tmp <-  -->
-<!--     vindex%>% -->
-<!--     filter(phage!="noPHI")%>% -->
-<!--     filter(host==sum.phi$host[i])%>% -->
-<!--     filter(colony==sum.phi$colony[i])%>% -->
-<!--     filter(phage==sum.phi$phage[i])%>% -->
-<!--     # filter(dilution>=max.dilut)%>% -->
-<!--     arrange(log.moi) -->
-<!--   sum.phi$Ap[i] <- trapz(tmp$log.moi, tmp$Vi) -->
-<!--   sum.phi$Amax[i] <-  trapz(tmp$log.moi,rep(1, nrow(tmp))) -->
-
-<!-- } -->
-
-<!-- rm(tmp) -->
-<!-- sum.phi$Vp <- sum.phi$Ap/sum.phi$Amax -->
-
-<!-- sum.phi%>% -->
-<!--   # filter(n==8)%>% -->
-<!--   ggplot(aes(x=interaction(phage,host), y=Vp))+ -->
-<!--   geom_boxplot(width=0.2)+ -->
-<!--     geom_jitter(shape=21,#aes(shape=as.factor(colony)), -->
-<!--               height=0, width=0.05,size=5, fill="grey", alpha=0.5)+ -->
-<!--   # scale_shape_manual(values=c(15,16,22,21))+ -->
-<!--   ylim(0,1)+ -->
-<!--   theme_cowplot() -->
-<!-- ``` -->
-
-<!-- ## Stats   -->
-<!-- ```{r} -->
-<!-- summary(aov(Vp~host+colony, sum.phi  )) -->
-<!-- ``` -->
-
-<!-- # No Difference!!   -->
-
-
-<!-- Nice plot -->
-<!-- ```{r} -->
-<!-- d%>% -->
-<!--   filter(dilution != "Blank")%>% -->
-<!--   filter(Time<10)%>% -->
-<!--   filter(phage!="noPHI")%>% -->
-<!--   # filter(dilution<=max.dilut)%>% -->
-<!--   ggplot(aes(x=Time, y=OD600))+ -->
-<!--   geom_line(aes(group=well,color=dilution), size=1)+ -->
-<!--   facet_grid(host~colony)+ -->
-<!--   theme_cowplot()+ -->
-<!--     theme(legend.position = "bottom") -->
-<!-- ``` -->
 
