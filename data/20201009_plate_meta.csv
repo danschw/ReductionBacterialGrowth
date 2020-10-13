@@ -1,0 +1,8 @@
+﻿plate,rep,Time,vortex
+Plate 1,A,-1,FALSE
+Plate 2,A,0,FALSE
+Plate 3,B,0,FALSE
+Plate 4,A,4,FALSE
+Plate 5,B,4,FALSE
+Plate 6,A,4,TRUE
+Plate 7,B,4,TRUE
